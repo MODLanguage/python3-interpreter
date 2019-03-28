@@ -21,11 +21,11 @@ class JSONFormatter(MODLParserListener):
 
     def enterModl_value(self, ctx:MODLParser.Modl_valueContext):
         if ctx.NUMBER():
-            value = int(str(ctx.NUMBER()))
+            value = int(ctx.NUMBER().getText())
         elif ctx.STRING():
-            value = str(ctx.STRING())
+            value = ctx.STRING().getText()
         elif ctx.QUOTED():
-            value = str(ctx.QUOTED())[1:-1] # strip quotes
+            value = ctx.QUOTED().getText()[1:-1] # strip quotes
         else:
             value = None
         self.json_obj = {self.name: value}
