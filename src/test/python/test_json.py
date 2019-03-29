@@ -15,6 +15,12 @@ class ParseToJSONTestCase(unittest.TestCase):
     def test_name_string_pair(self):
         self.assertEqual('{"a": "1"}', modl.to_json('a="1"'))
 
+    def test_name_null_pair(self):
+        self.assertEqual('{"b": null}', modl.to_json('b=null'))
+
+    def test_name_boolean_pair(self):
+        self.assertEqual('{"b": true}', modl.to_json('b=true'))
+        self.assertEqual('{"b": false}', modl.to_json('b=false'))
 
     def test_base_tests(self):
         with open("../json/base_tests.json") as f:
