@@ -12,8 +12,9 @@ class ParseToJSONTestCase(unittest.TestCase):
     def test_name_number_pair(self):
         self.assertEqual('{"a": 1}', modl.to_json("a=1"))
 
-    # def test_name_exp_pair(self):
-    #     self.assertEqual('{"a": -1.34234e2}', modl.to_json("a=-1.34234e2"))
+    # TODO: do we want to keep the format of the original input?
+    def test_name_exp_pair(self):
+        self.assertEqual('{"a": -1342340000000.0}', modl.to_json("a=-1.34234e12"))
 
     def test_name_float_pair(self):
         self.assertEqual('{"a": 1.23}', modl.to_json("a=1.23"))

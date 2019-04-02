@@ -1,7 +1,9 @@
 from typing import List
 
-from generated.MODLParser import MODLParser
 from generated.MODLParserListener import MODLParserListener
+from generated.MODLLexer import MODLLexer, CommonTokenStream, ParseTreeWalker
+from generated.MODLParser import MODLParser
+from antlr4 import InputStream
 
 
 class ModlObjectListener(MODLParserListener):
@@ -96,3 +98,16 @@ class Value(MODLParserListener):
         if ctx.NULL():
             self.is_null = True
 
+
+def parse(input_stream) -> ModlObject:
+    # Wrap the input in an InputStream if it's just a string
+    if type(input_stream) == str:
+        input_stream = InputStream(input_stream)
+    lexer = MODLLexer(input_stream)
+    stream = CommonTokenStream(lexer)
+    parser = MODLParser(stream)
+    tree = parser.modl()
+    walker = ParseTreeWalker()
+    listener = ModlObjectListener()
+    walker.walk(listener, tree)
+    return listener.modl_object()
