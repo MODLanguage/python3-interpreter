@@ -12,6 +12,12 @@ class ParseToJSONTestCase(unittest.TestCase):
     def test_name_number_pair(self):
         self.assertEqual('{"a": 1}', modl.to_json("a=1"))
 
+    # def test_name_exp_pair(self):
+    #     self.assertEqual('{"a": -1.34234e2}', modl.to_json("a=-1.34234e2"))
+
+    def test_name_float_pair(self):
+        self.assertEqual('{"a": 1.23}', modl.to_json("a=1.23"))
+
     def test_name_string_pair(self):
         self.assertEqual('{"a": "1"}', modl.to_json('a="1"'))
 
