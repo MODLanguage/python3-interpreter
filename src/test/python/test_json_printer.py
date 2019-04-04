@@ -33,13 +33,17 @@ class ParseToJSONTestCase(unittest.TestCase):
         with open("../json/base_tests.json") as f:
             test_data = json.load(f)
 
-        i = 0;
+        # Why so many fewer subtests being run than expected?
+        print(f"Running {len(test_data)} test cases in base_tests.json")
+        i = 0
         for t in test_data:
             i += 1
             input: str = t['input']
-            expected: str = json.dumps(json.loads(t['expected_output']))
-            with self.subTest(msg=f"JSON {i}", input=input, expected=expected):
-                actual = json.dumps(json.loads(modl.to_json(input)))
+            with self.subTest(msg=f"JSON {i}", input=input):
+                expected = json.loads(t['expected_output'])
+                actual_str = modl.to_json(input)
+                actual = json.loads(actual_str)
+                # Compare JSON structures rather than strings, so that we're not failing on, e.g. whitespace
                 self.assertEqual(expected, actual)
 
 if __name__ == '__main__':
