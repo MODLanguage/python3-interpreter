@@ -47,8 +47,8 @@ class Structure(MODLParserListener):
 
 class Pair(MODLParserListener):
     def __init__(self):
-        self.key = ''
-        self.value_item = None
+        self.key: str = ''
+        self.value_item: ValueItem = None
 
     def enterModl_pair(self, ctx:MODLParser.Modl_pairContext):
         if ctx.STRING():
@@ -79,6 +79,23 @@ class Value(MODLParserListener):
         self.is_true = False
         self.is_false = False
         self.is_null = False
+
+    def __str__(self):
+        return str(self.get_value())
+
+    def get_value(self):
+        if self.string:
+            return self.string
+        if self.number:
+            return self.number
+        if self.quoted:
+            return self.quoted
+        if self.is_true:
+            return True
+        if self.is_false:
+            return False
+        if self.is_null:
+            return None
 
     def enterModl_value(self, ctx:MODLParser.Modl_valueContext):
         if ctx.STRING():

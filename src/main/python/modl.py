@@ -1,10 +1,10 @@
 import parser
 import printer
+from interpreter import ModlInterpreter
 
 
 def to_json(input_stream) -> str:
-    parsed_modl = parser.parse(input_stream)
-    # interpreted = ....
-    # return printer.to_json(interpreted)
-    return printer.to_json(parsed_modl)
+    parsed = parser.parse(input_stream)
+    interpreted = ModlInterpreter().interpret(parsed)
+    return printer.to_json(interpreted)
 
