@@ -4,7 +4,7 @@ from antlr4.tree.Tree import TerminalNodeImpl
 
 from generated.MODLParserListener import MODLParserListener
 from generated.MODLLexer import MODLLexer, CommonTokenStream, ParseTreeWalker
-from generated.MODLParser import MODLParser, TerminalNode
+from generated.MODLParser import MODLParser
 from antlr4 import InputStream
 
 
@@ -63,6 +63,11 @@ class Map(MODLParserListener):
     def __init__(self):
         self.map_items: List[MapItem] = None
 
+    def to_dict(self):
+        if self.map_items:
+            return {i.get_key():i.get_value() for i in self.map_items}
+        return {}
+
     def enterModl_map(self, ctx:MODLParser.Modl_mapContext):
         if ctx.modl_map_item():
             self.map_items = []
@@ -76,6 +81,18 @@ class MapItem(MODLParserListener):
     def __init__(self):
         self.pair = None
         self.map_conditional = None
+
+    def get_key(self):
+        if self.pair:
+            return self.pair.get_key()
+        else:
+            return self.map_conditional.get_key()
+
+    def get_value(self):
+        if self.pair:
+            return self.pair.get_value()
+        else:
+            return self.map_conditional.get_value()
 
     def enterModl_map_item(self, ctx:MODLParser.Modl_map_itemContext):
         if ctx.modl_pair():
@@ -94,15 +111,16 @@ class TopLevelConditional(MODLParserListener):
     pass # TODO
 
 
-
-class AbstractArrayItem():
-    pass # TODO
-
-
-class ArrayItem(MODLParserListener,AbstractArrayItem):
+class ArrayItem(MODLParserListener):
     def __init__(self):
         self.array_value_item: ArrayValueItem = None
         self.array_conditional: ArrayConditional = None
+
+    def get_item(self):
+        if self.array_value_item:
+            return self.array_value_item
+        else:
+            return self.array_conditional
 
     def enterModl_array_item(self, ctx:MODLParser.Modl_array_itemContext):
         if ctx.modl_array_conditional():
@@ -125,6 +143,26 @@ class ArrayValueItem(MODLParserListener):
         self.is_false = None
         self.is_null = None
         self.string = None
+
+    def get_value(self):
+        if self.map:
+            return self.map
+        if self.array:
+            return self.array
+        if self.pair:
+            return self.pair
+        if self.string:
+            return self.string
+        if self.number:
+            return self.number
+        if self.quoted:
+            return self.quoted
+        if self.is_true:
+            return True
+        if self.is_false:
+            return False
+        if self.is_null:
+            return None
 
     def enterModl_array_value_item(self, ctx:MODLParser.Modl_array_value_itemContext):
         if ctx.modl_map():
@@ -175,7 +213,10 @@ def handle_empty_array_item() -> ArrayItem:
 
 class NbArray(MODLParserListener):
     def __init__(self):
-        self.array_items: List[ArrayItem] = None
+        self.array_items: List = None
+
+    def get_item(self):
+        return self.array_items
 
     def enterModl_nb_array(self, ctx:MODLParser.Modl_nb_arrayContext):
         self.array_items = []
@@ -212,7 +253,10 @@ class NbArray(MODLParserListener):
 
 class Array(MODLParserListener):
     def __init__(self):
-        self.array_items: List[AbstractArrayItem] = None
+        self.array_items: List = None
+
+    def to_list(self) -> List:
+        return [ai.get_item() for ai in self.array_items]
 
     def enterModl_array(self, ctx: MODLParser.Modl_arrayContext):
         self.array_items = []
@@ -254,6 +298,17 @@ class Pair(MODLParserListener):
         self.array: Array = None
         self.value_item: ValueItem = None
 
+    def get_key(self):
+        return self.key
+
+    def get_value(self):
+        if self.map:
+            return map
+        if self.array:
+            return self.array
+        if self.value_item:
+            return self.value_item
+
     def enterModl_pair(self, ctx:MODLParser.Modl_pairContext):
         if ctx.STRING():
             self.key = ctx.STRING().getText()
@@ -275,6 +330,15 @@ class ValueItem(MODLParserListener):
     def __init__(self):
         self.value = None
         self.value_conditional = None
+
+    def get_value(self):
+        if self.value:
+            return self.value
+        else:
+            return self.value_conditional
+
+    def __str__(self):
+        return str(self.get_value())
 
     def enterModl_value_item(self, ctx:MODLParser.Modl_value_itemContext):
         if ctx.modl_value():
