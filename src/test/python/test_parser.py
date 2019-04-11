@@ -80,5 +80,15 @@ class ParserTestCase(unittest.TestCase):
         actual_items = [ai.array_value_item.string for ai in pair.value_item.value.nb_array.array_items]
         self.assertEquals(['red', None, 'blue'], actual_items)
 
+    def test_conditional(self):
+        modl = parse('country=gb;support_contact={country=gb?John Smith/country=us?John Doe/?None}')
+        pair = modl.structures[1].pair
+        self.assertEqual('support_contact', pair.key)
+        conditionals = pair.value_item.get_value().value_conditionals
+        for k in conditionals.keys():
+            print(k)
+        self.fail('Not yet working?')
+
+
 if __name__ == '__main__':
     unittest.main()

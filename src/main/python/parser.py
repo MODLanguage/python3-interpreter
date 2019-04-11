@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 
 from antlr4.tree.Tree import TerminalNodeImpl
 
@@ -104,11 +104,147 @@ class MapItem(MODLParserListener):
 
 
 class MapConditional(MODLParserListener):
-    pass # TODO
+    def __init__(self):
+        self.map_conditionals = {}
+
+    def enterModl_map_conditional(self, ctx:MODLParser.Modl_map_conditionalContext):
+        for i in range(0, len(ctx.modl_condition_test())):
+            condition_test = ConditionTest()
+            ctx.modl_condition_test(i).enterRule(condition_test)
+            conditional_return = MapConditionalReturn()
+            ctx.modl_map_conditional_return(i).enterRule(conditional_return)
+            self.map_conditionals[condition_test] = conditional_return
+        num_returns = len(ctx.modl_map_conditional_return())
+        num_tests = len(ctx.modl_condition_test())
+        if num_returns > num_tests:
+            condition_test = ConditionTest()
+            conditional_return = MapConditionalReturn()
+            ctx.modl_map_conditional_return(num_returns-1).enterRule(conditional_return)
+            self.map_conditionals[condition_test] = conditional_return
+
+
+class MapConditionalReturn(MODLParserListener):
+    def __init__(self):
+        self.map_items = []
+
+    def enterModl_map_conditional_return(self, ctx:MODLParser.Modl_map_conditional_returnContext):
+        if ctx.modl_map_item():
+            for mi in ctx.modl_map_item():
+                map_item = MapItem()
+                mi.enterRule(map_item)
+                self.map_items.append(map_item)
+
+
+class SubCondition(MODLParserListener):
+    """Base class"""
+    pass
+
+
+class ConditionGroup(SubCondition):
+    def __init__(self):
+        self.condition_tests = []
+
+    def __str__(self):
+        return ','.join(self.condition_tests)
+
+    def enterModl_condition_group(self, ctx:MODLParser.Modl_condition_groupContext):
+        if ctx.children:
+            last_operator = None
+            for child in ctx.children:
+                if type(child) == MODLParser.Modl_condition_testContext:
+                    condition_test = ConditionTest()
+                    child.enterRule(condition_test)
+                    self.condition_tests.append((condition_test,last_operator))
+                    last_operator = None
+                else:
+                    if not(child.getText == '{' or child.getText == '}'):
+                        last_operator = child.getText()
+
+
+class Condition(SubCondition):
+    def __init__(self):
+        self.key = None
+        self.operator = None
+        self.values = []
+
+    def __str__(self):
+        return str(self.key)
+
+    def enterModl_condition(self, ctx:MODLParser.Modl_conditionContext):
+        if ctx.STRING():
+            self.key = ctx.STRING().getText()
+        if ctx.modl_operator():
+            self.operator = ctx.modl_operator().getText()
+        for v in ctx.modl_value():
+            value = Value()
+            v.enterRule(value)
+            self.values.append(value)
+
+
+class ConditionTest(MODLParserListener):
+    def __init__(self):
+        self.subconditions = []
+
+    def __str__(self):
+        return ','.join([f"{a} {b} {c}" for (a,b,c) in self.subconditions])
+
+    def enterModl_condition_test(self, ctx:MODLParser.Modl_condition_testContext):
+        if ctx.children:
+            last_operator: str = None
+            should_negate = False
+            for child in ctx.children:
+                if type(child) == MODLParser.Modl_condition_groupContext:
+                    condition_group = ConditionGroup()
+                    child.enterRule(condition_group)
+                    self.subconditions.append((condition_group,last_operator,should_negate))
+                    last_operator = None
+                    should_negate = False
+                elif type(child) == MODLParser.Modl_conditionContext:
+                    condition = Condition()
+                    child.enterRule(condition)
+                    self.subconditions.append((condition,last_operator,should_negate))
+                    last_operator = None
+                    should_negate = False
+                else:
+                    if child.getText() == '!':
+                        should_negate = True
+                    else:
+                        last_operator = child.getText()
+
+
+class TopLevelConditionalReturn(MODLParserListener):
+    def __init__(self):
+        self.structures = []
+
+    def enterModl_top_level_conditional_return(self, ctx:MODLParser.Modl_top_level_conditional_returnContext):
+        if ctx.modl_structure():
+            for struct in ctx.modl_structure():
+                structure = Structure()
+                struct.enterRule(structure)
+                self.structures.append(structure)
 
 
 class TopLevelConditional(MODLParserListener):
-    pass # TODO
+    def __init__(self):
+        self.conditions: Dict[ConditionTest,TopLevelConditionalReturn] = None
+
+    def enterModl_top_level_conditional(self, ctx:MODLParser.Modl_top_level_conditionalContext):
+        self.conditions = {}
+
+        for i in range(0, len(ctx.modl_condition_test())):
+            condition_test = ConditionTest()
+            ctx.modl_condition_test(i).enterRule(condition_test)
+            conditional_return = TopLevelConditionalReturn()
+            ctx.modl_top_level_conditional_return(i).enterRule(conditional_return)
+            self.conditions[condition_test] = conditional_return
+        # This seems odd...
+        num_returns = len(ctx.modl_top_level_conditional_return())
+        num_tests = len(ctx.modl_condition_test())
+        if num_returns > num_tests:
+            condition_test = ConditionTest()
+            conditional_return = TopLevelConditionalReturn()
+            ctx.modl_top_level_conditional_return(num_returns-1).enterRule(conditional_return)
+            self.conditions[condition_test] = conditional_return
 
 
 class ArrayItem(MODLParserListener):
@@ -349,8 +485,39 @@ class ValueItem(MODLParserListener):
             ctx.modl_value_conditional().enterRule(self.value_conditional)
 
 
+class ValueConditionalReturn(MODLParserListener):
+    def __init__(self):
+        self.value_items = []
+
+    def __str__(self):
+        return ','.join(self.value_items)
+
+    def enterModl_value_conditional_return(self, ctx:MODLParser.Modl_value_conditional_returnContext):
+        if ctx.modl_value_item():
+            for vi in ctx.modl_value_item():
+                value_item = ValueItem()
+                vi.enterRule(value_item)
+                self.value_items.append(value_item)
+
+
 class ValueConditional(MODLParserListener):
-    pass
+    def __init__(self):
+        self.value_conditionals = {}
+
+    def enterModl_value_conditional(self, ctx:MODLParser.Modl_value_conditionalContext):
+        for i in range(len(ctx.modl_condition_test())):
+            condition_test = ConditionTest()
+            ctx.modl_condition_test(i).enterRule(condition_test)
+            conditional_return = ValueConditionalReturn()
+            ctx.modl_value_conditional_return(i).enterRule(conditional_return)
+            self.value_conditionals[condition_test] = conditional_return
+        num_returns = len(ctx.modl_value_conditional_return())
+        num_tests = len(ctx.modl_condition_test())
+        if num_returns > num_tests:
+            condition_test = ConditionTest()
+            conditional_return = ValueConditionalReturn()
+            ctx.modl_value_conditional_return(num_returns-1).enterRule(conditional_return)
+            self.value_conditionals[condition_test] = conditional_return
 
 
 class Value(MODLParserListener):
