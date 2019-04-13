@@ -328,8 +328,37 @@ class ArrayValueItem(MODLParserListener):
         # Ignoring comments
 
 
-class ArrayConditional():
-    pass # TODO
+class ArrayConditionalReturn(MODLParserListener):
+    def __init__(self):
+        self.array_items = []
+
+    def enterModl_array_conditional_return(self, ctx:MODLParser.Modl_array_conditional_returnContext):
+        if ctx.modl_array_item():
+            for ai in ctx.modl_array_item():
+                array_item = ArrayItem()
+                ai.enterRule(array_item)
+                self.array_items.append(array_item)
+
+
+class ArrayConditional(MODLParserListener):
+    def __init__(self):
+        self.conditions: Dict[ConditionTest, ArrayConditionalReturn] = {}
+
+    def enterModl_array_conditional(self, ctx:MODLParser.Modl_array_conditionalContext):
+        for i in range(0, len(ctx.modl_condition_test())):
+            condition_test = ConditionTest()
+            ctx.modl_condition_test(i).enterRule(condition_test)
+            conditional_return = ArrayConditionalReturn()
+            ctx.modl_array_conditional_return(i).enterRule(conditional_return)
+            self.conditions[condition_test] = conditional_return
+
+        num_returns = len(ctx.modl_array_conditional_return())
+        num_tests = len(ctx.modl_condition_test())
+        if num_returns > num_tests:
+            condition_test = ConditionTest()
+            conditional_return = ArrayConditionalReturn()
+            ctx.modl_array_conditional_return(num_returns-1).enterRule(conditional_return)
+            self.conditions[condition_test] = conditional_return
 
 
 def handle_empty_array_item() -> ArrayItem:
