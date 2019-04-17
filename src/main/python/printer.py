@@ -1,5 +1,7 @@
 import json
-from parser import Structure, ModlObject, Pair, Value, ValueItem, Map, Array, ArrayValueItem, ArrayItem
+
+from interpreter import ModlObject
+from parser import Structure, Value, ValueItem, Map, Array, ArrayValueItem, ArrayItem
 
 
 class MODLJSONEncoder(json.JSONEncoder):
@@ -33,7 +35,8 @@ class MODLJSONEncoder(json.JSONEncoder):
 
 
 def to_json(modl: ModlObject) -> str:
-    structures = modl.structures
+    # TODO: temporary use of original ModlParsed object - replace with direct usage of ModlObject
+    structures = modl.raw_modl.modl_parsed.structures
     if len(structures) == 1:
         data = structures[0]
     else:

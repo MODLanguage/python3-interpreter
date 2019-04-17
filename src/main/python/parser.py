@@ -10,7 +10,7 @@ from antlr4 import InputStream
 
 class ModlObjectListener(MODLParserListener):
     def __init__(self):
-        self.modl = ModlObject()
+        self.modl = ModlParsed()
 
     def enterModl(self, ctx:MODLParser.ModlContext):
         text = ctx.getText()
@@ -28,9 +28,17 @@ class ModlObjectListener(MODLParserListener):
         return self.modl
 
 
-class ModlObject:
+class ModlParsed:
     def __init__(self):
-        self.structures: List[Structure] = []
+        self._structures: List[Structure] = []
+
+    @property
+    def structures(self):
+        return self._structures
+
+    @structures.setter
+    def structures(self, value):
+        self._structures = value
 
     def append(self, structure):
         self.structures.append(structure)
@@ -620,7 +628,7 @@ class Value(MODLParserListener):
             self.is_null = True
 
 
-def parse(input_stream) -> ModlObject:
+def parse(input_stream) -> ModlParsed:
     # Wrap the input in an InputStream if it's just a string
     if type(input_stream) == str:
         input_stream = InputStream(input_stream)
