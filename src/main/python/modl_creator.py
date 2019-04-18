@@ -313,7 +313,6 @@ def process_modl_parsed(parsed: parser.ModlParsed) -> RawModlObject:
     raw_modl_object = RawModlObject()
 
     for parsed_struct in parsed.structures:
-        # TODO: why are we getting a list of lists back here, instead of a list?
         structures = process_modl_structure(raw_modl_object, parsed_struct)
         raw_modl_object.add_structures(structures)
 
@@ -372,9 +371,9 @@ def process_modl_value(raw, parsed_value: parser.Value):
     if not parsed_value:
         return None
 
-    pairs = process_modl_item(raw, parsed_value.pair)
-    if pairs:
-        return pairs[0]
+    pair = process_modl_item(raw, parsed_value.pair)
+    if pair:
+        return pair
     value = process_modl_item(raw, parsed_value.map)
     if value:
         return value
@@ -523,7 +522,7 @@ def process_modl_item(raw: RawModlObject, parsed_item):
             pair = process_modl_item(raw, map_item_parsed)
             if pair:
                 modl_map.add(pair)
-        return map
+        return modl_map
 
     if type(parsed_item) == parser.MapItem:
         pair = process_modl_item(raw, parsed_item.map_conditional)
