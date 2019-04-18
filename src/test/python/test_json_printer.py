@@ -20,6 +20,9 @@ class ParseToJSONTestCase(unittest.TestCase):
         self.assertEqual('{"a": 1.23}', modl.to_json("a=1.23"))
 
     def test_name_string_pair(self):
+        self.assertEqual('{"a": "hello"}', modl.to_json('a=hello'))
+
+    def test_name_quoted_pair(self):
         self.assertEqual('{"a": "1"}', modl.to_json('a="1"'))
 
     def test_name_null_pair(self):

@@ -14,11 +14,11 @@ class ModlValue:
         raise ValueError
 
     def get_value(self):
-        """Do we need this?"""
-        return self.get_modl_values()
+        """Underlying value of object"""
+        raise ValueError
 
     def get_modl_values(self):
-        raise ValueError
+        return []
 
     def is_modl_object(self) -> bool:
         return False
@@ -53,15 +53,80 @@ class ModlValue:
     def is_null(self):
         return False
 
+class Number(ModlValue):
+    def __init__(self, number):
+        self.number = number
+
+    def is_number(self):
+        return True
+
+    def get_value(self):
+        return self.number
+
+    def is_terminal(self):
+        return True
+
+def escape(raw_string:str) -> str:
+    # TODO
+    return raw_string
+
+
+class String(ModlValue):
+    def __init__(self, string_val):
+        self.string = escape(string_val)
+
+    def is_string(self):
+        return True
+
+    def get_value(self):
+        return self.string
+
+    def is_terminal(self):
+        return True
+
+    def __str__(self):
+        return self.string
+
+
+class TrueVal(ModlValue):
+    def is_true(self):
+        return True
+
+    def is_terminal(self):
+        return True
+
+    def get_value(self):
+        return True
+
+class FalseVal(ModlValue):
+    def is_false(self):
+        return True
+
+    def is_terminal(self):
+        return True
+
+    def get_value(self):
+        return False
+
+
+class NullVal(ModlValue):
+    def is_null(self):
+        return True
+
+    def is_terminal(self):
+        return True
+
+    def get_value(self):
+        return None
 
 class Structure(ModlValue):
     pass
 
 
 class Pair(Structure):
-    def __init__(self, key=None, value=None):
-        self.key = key
-        self.value = value
+    def __init__(self, key: String = None, value: ModlValue = None):
+        self.key: String = key
+        self.value: ModlValue = value
 
     def is_pair(self):
         return True
@@ -76,8 +141,7 @@ class Pair(Structure):
         return self.value
 
     def get_modl_values(self):
-        # return [self.value]  # TODO: this is why we're getting extra nesting?! See comment in printer.to_json()
-        return self.value  # TODO: is this why we're getting extra nesting?! See comment in printer.to_json()
+        return [self.get_value()]
 
     def add_modl_value(self, value):
         if not value:
@@ -98,7 +162,6 @@ class Pair(Structure):
             self.value = Array()
             self.value.add(old_value)
             self.value.add(value)
-
 
 
 class Map(Structure):
@@ -220,6 +283,17 @@ class ModlObject(ModlValue):
     def __init__(self):
         self.structures: List[Structure] = []
 
+    def is_modl_object(self):
+        return True
+
+    def get_modl_values(self):
+        return self.structures
+
+    def get_keys(self) -> List[str]:
+        """Returns a list of pure python string (str) objects representing the keys in the top-level
+        MODL structures."""
+        return [str(s.get_key()) for s in self.structures if type(s) == Pair]
+
     def get_by_index(self, index: int):
         return self.structures[index]
 
@@ -294,6 +368,83 @@ def process_import_statement(raw, parsed_pair: parser.Pair):
             structures.append(pair)
 
 
+def process_modl_value(raw, parsed_value: parser.Value):
+    if not parsed_value:
+        return None
+
+    pairs = process_modl_item(raw, parsed_value.pair)
+    if pairs:
+        return pairs[0]
+    value = process_modl_item(raw, parsed_value.map)
+    if value:
+        return value
+
+    value = process_modl_item(raw, parsed_value.array)
+    if value:
+        return value
+
+    value = process_modl_item(raw, parsed_value.nb_array)
+    if value:
+        return value
+
+    value = process_modl_quoted(raw, parsed_value.quoted)
+    if value:
+        return value
+
+    value = process_modl_number(raw, parsed_value.number)
+    if value:
+        return value
+
+    value = process_modl_true(raw, parsed_value.is_true)
+    if value:
+        return value
+
+    value = process_modl_false(raw, parsed_value.is_false)
+    if value:
+        return value
+
+    value = process_modl_null(raw, parsed_value.is_null)
+    if value:
+        return value
+
+    value = process_modl_string(raw, parsed_value.string)
+    if value:
+        return value
+
+    return None
+
+
+def process_modl_string(raw, parsed_string):
+    if not parsed_string:
+        return None
+    return String(parsed_string)
+
+def process_modl_quoted(raw, parsed_quoted):
+    if not parsed_quoted:
+        return None
+    return String(parsed_quoted)
+
+def process_modl_number(raw, parsed_number):
+    if not parsed_number:
+        return None
+    return Number(parsed_number)
+
+def process_modl_true(raw, parsed_true):
+    if not parsed_true:
+        return None
+    return TrueVal()
+
+def process_modl_false(raw, parsed_false):
+    if not parsed_false:
+        return None
+    return FalseVal()
+
+def process_modl_null(raw, parsed_null):
+    if not parsed_null:
+        return None
+    return NullVal()
+
+
 def process_modl_item(raw: RawModlObject, parsed_item):
     print("Found type", type(parsed_item))
 
@@ -304,22 +455,23 @@ def process_modl_item(raw: RawModlObject, parsed_item):
         modl_map = Map()
         for map_item_parsed in parsed_item.map_items:
             pair = process_modl_item(raw, map_item_parsed)
-            modl_map.add(pair)
+            if pair:
+                modl_map.add(pair)
         return map
 
     if type(parsed_item) == parser.MapItem:
         pair = process_modl_item(raw, parsed_item.map_conditional)
-        if pair is not None:
+        if pair:
             return pair
-        structures = process_modl_item(raw, parsed_item.pair)
-        if len(structures) > 0:
-            return structures[0]
+        pair = process_modl_item(raw, parsed_item.pair)
+        if pair:
+            return pair
 
     if type(parsed_item) == parser.Value:
         # pairs = process_modl_item(raw, parsed_item.pair)
         # if len(pairs) > 0:
         #     return pairs[0]  # why? why not just parsed_item.get_value() as below?
-        return parsed_item.get_value()
+        return process_modl_value(raw, parsed_item)
 
     if type(parsed_item) == parser.ArrayValueItem:
         # pairs = process_modl_item(raw, parsed_item.pair)
@@ -344,7 +496,7 @@ def process_modl_item(raw: RawModlObject, parsed_item):
     # RawModlObject.Condition processModlParsed(RawModlObject rawModlObject, ModlParsed.Condition conditionParsed)
 
     if type(parsed_item) == parser.Pair:
-        pair = Pair(key=parsed_item.get_key())
+        pair = Pair(key=String(parsed_item.get_key()))
 
         if parsed_item.get_key() == '*I' or parsed_item.get_key() == '*IMPORT':
             return process_import_statement(raw, parsed_item)
