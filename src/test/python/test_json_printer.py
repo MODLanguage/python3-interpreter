@@ -32,6 +32,9 @@ class ParseToJSONTestCase(unittest.TestCase):
         self.assertEqual('{"b": true}', modl.to_json('b=true'))
         self.assertEqual('{"b": false}', modl.to_json('b=false'))
 
+    def test_simple_array(self):
+        self.assertEqual('["a", "b", "c"]', modl.to_json('[a;b;c]'))
+
     def test_base_tests(self):
         with open("../json/base_tests.json") as f:
             test_data = json.load(f)

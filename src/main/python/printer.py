@@ -8,7 +8,7 @@ class MODLJSONEncoder(json.JSONEncoder):
         if type(o) == Structure:
             return self.transform_structure(o)
         if type(o) == Array:
-            return o.to_list()
+            return o.get_modl_values()
         if type(o) == Pair:
             return self.encode_pair(o)
         if type(o) == Map:
@@ -34,7 +34,6 @@ class MODLJSONEncoder(json.JSONEncoder):
 
 def to_json(modl: ModlObject) -> str:
     structures = modl.structures
-    # TODO: sort out this horrible, horrible block that shouldn't be here
     if len(structures) == 1:
         data = structures[0]
     else:

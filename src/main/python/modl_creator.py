@@ -414,6 +414,51 @@ def process_modl_value(raw, parsed_value: parser.Value):
     return None
 
 
+def process_modl_array_value_item(raw, parsed_value: parser.ArrayValueItem):
+    if not parsed_value:
+        return None
+
+    pairs = process_modl_item(raw, parsed_value.pair)
+    if pairs:
+        return pairs[0]
+    value = process_modl_item(raw, parsed_value.map)
+    if value:
+        return value
+
+    value = process_modl_item(raw, parsed_value.array)
+    if value:
+        return value
+
+    # value = process_modl_item(raw, parsed_value.nb_array)
+    # if value:
+    #     return value
+
+    value = process_modl_quoted(raw, parsed_value.quoted)
+    if value:
+        return value
+
+    value = process_modl_number(raw, parsed_value.number)
+    if value:
+        return value
+
+    value = process_modl_true(raw, parsed_value.is_true)
+    if value:
+        return value
+
+    value = process_modl_false(raw, parsed_value.is_false)
+    if value:
+        return value
+
+    value = process_modl_null(raw, parsed_value.is_null)
+    if value:
+        return value
+
+    value = process_modl_string(raw, parsed_value.string)
+    if value:
+        return value
+
+    return None
+
 def process_modl_string(raw, parsed_string):
     if not parsed_string:
         return None
@@ -451,6 +496,27 @@ def process_modl_item(raw: RawModlObject, parsed_item):
     if parsed_item is None:
         return None
 
+    if type(parsed_item) == parser.Array:
+        modl_array = Array()
+        parsed_array: parser.Array = parsed_item
+        if parsed_array.array_items:
+            for parsed_array_item in parsed_array.array_items:
+                if isinstance(parsed_array_item, parser.ArrayItem):
+                    modl_value = process_modl_item(raw, parsed_array_item)
+                    if modl_value:
+                        modl_array.add(modl_value)
+                elif isinstance(parsed_array_item, parser.NbArray):
+                    pass
+        return modl_array
+
+    if type(parsed_item) == parser.ArrayItem:
+        modl_value = None
+        if parsed_item.array_conditional:
+            modl_value = process_modl_item(raw, parsed_item.array_conditional)
+        if parsed_item.array_value_item:
+            modl_value = process_modl_item(raw, parsed_item.array_value_item)
+        return modl_value
+
     if type(parsed_item) == parser.Map:
         modl_map = Map()
         for map_item_parsed in parsed_item.map_items:
@@ -477,7 +543,7 @@ def process_modl_item(raw: RawModlObject, parsed_item):
         # pairs = process_modl_item(raw, parsed_item.pair)
         # if len(pairs) > 0:
         #     return pairs[0]  # why? why not just parsed_item.get_value() as below?
-        return parsed_item.get_value()
+        return process_modl_array_value_item(raw, parsed_item)
 
     if type(parsed_item) == parser.ConditionTest:
         condition_test = ConditionTest()
