@@ -1,6 +1,7 @@
 from typing import List, Union
 
 import parser
+from string_utils import EscapeStrings
 
 
 class ModlValue:
@@ -66,9 +67,10 @@ class Number(ModlValue):
     def is_terminal(self):
         return True
 
+
 def escape(raw_string:str) -> str:
-    # TODO
-    return raw_string
+    replacer = EscapeStrings()
+    return replacer.unescape(raw_string)
 
 
 class String(ModlValue):
