@@ -1,5 +1,5 @@
 import unittest
-from interpreter import interpret
+from modl import interpret
 from modl_creator import process_modl_parsed
 import parser
 

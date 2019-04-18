@@ -541,6 +541,9 @@ class ValueConditional(MODLParserListener):
     def __init__(self):
         self.value_conditionals = {}
 
+    def get_conditional_returns(self):
+        return self.value_conditionals
+
     def enterModl_value_conditional(self, ctx:MODLParser.Modl_value_conditionalContext):
         for i in range(len(ctx.modl_condition_test())):
             condition_test = ConditionTest()

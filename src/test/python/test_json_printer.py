@@ -33,11 +33,13 @@ class ParseToJSONTestCase(unittest.TestCase):
         with open("../json/base_tests.json") as f:
             test_data = json.load(f)
 
-        # Why so many fewer subtests being run than expected?
         print(f"Running {len(test_data)} test cases in base_tests.json")
         i = 0
         for t in test_data:
             i += 1
+            # Restrict which tests are run - comment out to run all
+            # if i not in range(102,103):
+            #     continue
             input: str = t['input']
             with self.subTest(msg=f"JSON {i}", input=input):
                 expected = json.loads(t['expected_output'])
