@@ -507,7 +507,10 @@ def process_modl_item(raw: RawModlObject, parsed_item):
                     if modl_value:
                         modl_array.add(modl_value)
                 elif isinstance(parsed_array_item, parser.NbArray):
-                    pass
+                    for ai in parsed_array_item.array_items:
+                        modl_value = process_modl_item(raw, ai)
+                        if modl_value:
+                            modl_array.add(modl_value)
         return modl_array
 
     if type(parsed_item) == parser.ArrayItem:
@@ -517,6 +520,17 @@ def process_modl_item(raw: RawModlObject, parsed_item):
         if parsed_item.array_value_item:
             modl_value = process_modl_item(raw, parsed_item.array_value_item)
         return modl_value
+
+    if type(parsed_item) == parser.NbArray:
+        parsed_nb_array: parser.NbArray = parsed_item
+        if not parsed_nb_array.array_items:
+            return None
+        modl_array = Array()
+        for parsed_nb_array_item in parsed_nb_array.array_items:
+            modl_value = process_modl_item(raw, parsed_nb_array_item)
+            if modl_value:
+                modl_array.add(modl_value)
+        return modl_array
 
     if type(parsed_item) == parser.Map:
         modl_map = Map()
