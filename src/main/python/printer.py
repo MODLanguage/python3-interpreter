@@ -1,6 +1,4 @@
 import json
-from typing import Sized
-
 from interpreter import ModlObject
 from modl_creator import Structure, Map, ModlValue, Pair, Array
 
