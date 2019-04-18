@@ -357,7 +357,7 @@ def process_modl_item(raw: RawModlObject, parsed_item):
                 pair.add_modl_value(modl_array)
             if parsed_item.value_item:
                 pair.add_modl_value(process_modl_item_for_parent(raw, parsed_item.value_item, pair))
-            return [pair]
+            return pair
 
 
     return None

@@ -41,15 +41,10 @@ class MODLJSONEncoder(json.JSONEncoder):
 
 
 def to_json(modl: ModlObject) -> str:
-    # TODO: temporary use of original ModlParsed object - replace with direct usage of ModlObject
     structures = modl.structures
     # TODO: sort out this horrible, horrible block that shouldn't be here
     if len(structures) == 1:
-        if isinstance(structures, Sized) and len(structures[0]) == 1:
-            data = structures[0][0]  # TODO: we shouldn't have this level of nesting. Why list in a list?
-        else:
-            data = structures[0]
-        # data = structures[0]
+        data = structures[0]
     else:
         data = structures
     return json.dumps(data, cls=MODLJSONEncoder)
