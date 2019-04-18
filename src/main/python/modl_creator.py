@@ -321,12 +321,6 @@ def process_modl_item(raw: RawModlObject, parsed_item):
         #     return pairs[0]  # why? why not just parsed_item.get_value() as below?
         return parsed_item.get_value()
 
-    # if type(parsed_item == parser.ValueItem):
-    #     if parsed_item.value_conditional:
-    #         return process_conditional_for_parent(raw, parsed_item.value_conditional, parent)
-    #     if parsed_item.value_item():
-    #         return process_modl_item(raw, parsed_item.value_item)
-
     if type(parsed_item) == parser.ArrayValueItem:
         # pairs = process_modl_item(raw, parsed_item.pair)
         # if len(pairs) > 0:
