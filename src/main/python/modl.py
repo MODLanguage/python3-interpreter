@@ -1,7 +1,12 @@
 import parser
 import printer
-from interpreter import ModlObject, ModlInterpreter
-from modl_creator import process_modl_parsed
+import interpreter
+from modl_creator import ModlObject, process_modl_parsed
+import logging
+
+
+logging.basicConfig(level=logging.DEBUG)
+MODL_VERSION = 1
 
 
 def to_json(input_stream) -> str:
@@ -15,7 +20,6 @@ def interpret(input_stream) -> ModlObject:
     """High level API: parses, processes and interprets the MODL input"""
     modl_parsed = parser.parse(input_stream)
     raw_modl_object = process_modl_parsed(modl_parsed)
-    interpreter = ModlInterpreter()
-    return interpreter.execute(raw_modl_object)
+    return interpreter.interpret(raw_modl_object)
 
 

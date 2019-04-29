@@ -1,3 +1,4 @@
+import logging
 from typing import List, Union
 
 import parser
@@ -89,6 +90,19 @@ class String(ModlValue):
     def __str__(self):
         return self.string
 
+    # def __hash__(self):
+    #     return self.string.__hash__()
+
+    def __eq__(self, other):
+        """Conveniently allow `str == String` comparison"""
+        if other is None:
+            return False
+
+        if isinstance(other, str):
+            return other == str(self)
+        else:
+            return super().__eq__()
+
 
 class TrueVal(ModlValue):
     def is_true(self):
@@ -100,6 +114,10 @@ class TrueVal(ModlValue):
     def get_value(self):
         return True
 
+    def __eq__(self, other):
+        return isinstance(other, TrueVal) and other.is_true()
+
+
 class FalseVal(ModlValue):
     def is_false(self):
         return True
@@ -109,6 +127,9 @@ class FalseVal(ModlValue):
 
     def get_value(self):
         return False
+
+    def __eq__(self, other):
+        return isinstance(other, FalseVal) and other.is_false()
 
 
 class NullVal(ModlValue):
@@ -121,23 +142,36 @@ class NullVal(ModlValue):
     def get_value(self):
         return None
 
+
 class Structure(ModlValue):
     pass
 
 
 class Pair(Structure):
     def __init__(self, key: String = None, value: ModlValue = None):
-        self.key: String = key
+        self.key = key
         self.value: ModlValue = value
 
     def is_pair(self):
         return True
 
+    # TODO: temporary, post addition of property
     def get_key(self):
         return self.key
 
-    def get_keys(self):
-        return [self.key]
+    @property
+    def key(self):
+        return self._key
+
+    @key.setter
+    def key(self, key: Union[str,String]):
+        if isinstance(key, str):
+            key = String(key)
+        self._key = key
+
+    def get_keys(self) -> List[str]:
+        """Note: return type is list of str not MODL String"""
+        return [self._key.get_value()]
 
     def get_value(self):
         return self.value
@@ -492,7 +526,7 @@ def process_modl_null(raw, parsed_null):
 
 
 def process_modl_item(raw: RawModlObject, parsed_item):
-    print("Found type", type(parsed_item))
+    logging.debug("Found type %s", type(parsed_item))
 
     if parsed_item is None:
         return None

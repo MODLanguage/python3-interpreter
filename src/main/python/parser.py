@@ -1,3 +1,4 @@
+import logging
 from typing import List, Dict
 
 from antlr4.tree.Tree import TerminalNodeImpl
@@ -14,7 +15,7 @@ class ModlObjectListener(MODLParserListener):
 
     def enterModl(self, ctx:MODLParser.ModlContext):
         text = ctx.getText()
-        print(f"Entered MODL: {text}")
+        logging.debug(f"Entered MODL: {text}")
 
         for struct in ctx.modl_structure():
             structure = Structure()
@@ -22,7 +23,7 @@ class ModlObjectListener(MODLParserListener):
             self.modl.append(structure)
 
     def exitModl(self, ctx:MODLParser.ModlContext):
-        print("MODL has left the building.")
+        logging.debug("Exit MODL")
 
     def modl_object(self):
         return self.modl
@@ -52,7 +53,7 @@ class Structure(MODLParserListener):
         self.map: Map = None
 
     def enterModl_structure(self, ctx:MODLParser.Modl_structureContext):
-        print("Enter MODL Structure", ctx.getText())
+        logging.debug("Enter MODL Structure %s", ctx.getText())
         if ctx.modl_pair():
             self.pair = Pair()
             ctx.modl_pair().enterRule(self.pair)

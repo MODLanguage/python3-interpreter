@@ -1,6 +1,5 @@
 import json
-from interpreter import ModlObject
-from modl_creator import Structure, Map, ModlValue, Pair, Array
+from modl_creator import Structure, Map, ModlValue, Pair, Array, ModlObject
 
 
 class MODLJSONEncoder(json.JSONEncoder):

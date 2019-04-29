@@ -1,3 +1,4 @@
+import logging
 import unittest
 import modl
 import json
@@ -42,7 +43,7 @@ class ParseToJSONTestCase(unittest.TestCase):
         with open("../json/base_tests.json") as f:
             test_data = json.load(f)
 
-        print(f"Running {len(test_data)} test cases in base_tests.json")
+        logging.debug(f"Running {len(test_data)} test cases in base_tests.json")
         i = 0
         for t in test_data:
             i += 1
@@ -50,7 +51,7 @@ class ParseToJSONTestCase(unittest.TestCase):
             # if i not in range(102,103):
             #     continue
             input: str = t['input']
-            with self.subTest(msg=f"JSON {i}", input=input):
+            with self.subTest(msg=f"{i}", input=input, expected=t['expected_output']):
                 expected = json.loads(t['expected_output'])
                 actual_str = modl.to_json(input)
                 actual = json.loads(actual_str)
