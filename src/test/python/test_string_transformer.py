@@ -22,6 +22,10 @@ class StringTransformerTestCase(unittest.TestCase):
         transformer = StringTransformer({}, {}, {})
         self.assertEqual(String('\n&'), transformer.transform('\\n~&'))
 
+    def test_trim(self):
+        transformer = StringTransformer({}, {String('_v'): String('testing')}, {})
+        self.assertEqual(String('test'), transformer.transform("`%v.t(ing)`"))
+
 
 if __name__ == '__main__':
     unittest.main()

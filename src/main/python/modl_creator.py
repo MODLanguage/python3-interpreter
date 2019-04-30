@@ -90,8 +90,8 @@ class String(ModlValue):
     def __str__(self):
         return self.string
 
-    # def __hash__(self):
-    #     return self.string.__hash__()
+    def __hash__(self):
+        return self.string.__hash__()
 
     def __eq__(self, other):
         """Conveniently allow `str == String` comparison"""
@@ -100,8 +100,10 @@ class String(ModlValue):
 
         if isinstance(other, str):
             return other == str(self)
+        elif isinstance(other, String):
+            return str(other) == str(self)
         else:
-            return super().__eq__()
+            return super().__eq__(other)
 
 
 class TrueVal(ModlValue):

@@ -2,6 +2,7 @@ from typing import Union, List, Dict
 
 from modl_creator import TrueVal, ModlObject, ModlValue, FalseVal, String, Number
 from string_utils import EscapeStrings
+from variable_methods import is_variable_method, transform
 
 
 def is_digit(param):
@@ -10,11 +11,6 @@ def is_digit(param):
 
 def is_letter(char):
     return char.isalpha()
-
-
-def is_variable_method(param):
-    # TODO
-    return False
 
 
 def get_end_of_number(str_to_transform, start_index):
@@ -58,7 +54,6 @@ def get_end_of_number(str_to_transform, start_index):
                     return curr_index
                 else:
                     return curr_index - 1  # cope with "."
-
 
 
 class StringTransformer:
@@ -115,8 +110,20 @@ class StringTransformer:
 
         # 4: Find all non-space parts of the string that are prefixed with % (percent sign). These are object references – run “Object Referencing”
         percent_parts = self.get_percent_parts_from_string(input)
-        
 
+        for pct_part in percent_parts:
+            ret = self.run_object_referencing(pct_part, input, False)
+            if isinstance(ret, String):
+                input = str(ret)
+            elif isinstance(ret, Number):
+                if pct_part == input:
+                    return ret
+                num_str = str(ret.get_value())  # ?!@?
+                input = input.replace(pct_part, num_str)
+            else:
+                return ret
+
+        return String(input)
 
     def run_object_referencing(self, percent_part: str, string_to_transform: str, is_graved: bool):
         """
@@ -143,8 +150,8 @@ class StringTransformer:
             start_offset = 2
             end_offset = 1
 
-        modl_obj = ModlObject()
-        subject = percent_part[start_offset:-end_offset]
+        # modl_obj = ModlObject()
+        subject = percent_part[start_offset:len(percent_part)-end_offset]
 
         method_chain:str = None
         try:
@@ -157,6 +164,36 @@ class StringTransformer:
             method_chain = percent_part[index_of_dot + 1:len(percent_part) - end_offset]
 
         value: ModlValue = self.get_value_for_reference(subject)
+
+        if value is None:
+            return String(string_to_transform)
+        elif isinstance(value, String):
+            subject = str(value)
+        else:
+            return value
+
+        if method_chain:
+            methods = method_chain.split(".")
+            if not methods:
+                methods = [method_chain]
+            for method in methods:
+                if '(' in method:
+                    # HANDLE TRIM AND REPLACE HERE!!
+                    # We need to strip the "(<params>)" and apply the method to the subject AND the params!
+                    # TODO (we might need to check for escaped "."s one day...
+                    start_params_index = method.index('(')
+                    params_str = method[start_params_index + 1 : len(method) - 1]
+                    method_str = method[:start_params_index]
+                    subject = transform(method_str, f"{subject},{params_str}")
+                else:
+                    if not is_variable_method(method):
+                        # Nothing to do - leave it alone!
+                        subject = f"{subject}.{method}"
+                    else:
+                        subject = transform(method, subject)
+
+        string_to_transform = string_to_transform.replace(percent_part, subject)
+        return String(string_to_transform)
 
     def get_value_for_reference(self, subject) -> ModlValue:
         # Subject might be a nested object reference, so handle it here
@@ -244,7 +281,7 @@ class StringTransformer:
         else:
             return start_index
 
-    def get_percent_parts_from_string(self, input):
+    def get_percent_parts_from_string(self, input) -> List:
         # Find all non-space parts of the string that are prefixed with % (percent sign).
         percent_parts = []
         curr_index = 0
@@ -276,6 +313,14 @@ class StringTransformer:
                     return percent_parts
                 else:
                     end_index = get_end_of_number(input, start_index+1)
+
+                if end_index is not None:
+                    if end_index > start_index + 1:
+                        grave_part = input[start_index:end_index]
+                        percent_parts.append(grave_part)
+                        curr_index = end_index + 1
+                    finished = False
+        return percent_parts
 
 
     def get_next_percent(self, input, start_index):
