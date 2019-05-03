@@ -62,7 +62,7 @@ class StringTransformer:
                  variables: Dict[String, ModlValue],
                  numbered_variables: Dict[int, ModlValue]):
         self.value_pairs = value_pairs
-        self.variables = variables
+        self.variables: dict = variables
         self.numbered_variables = numbered_variables
 
     def transform(self, input: str) -> Union[None,ModlValue]:
@@ -228,10 +228,18 @@ class StringTransformer:
                 break
 
         if not found:
-            pass # TODO
+            for var_key, var_value in self.variables.items():
+                if subject == var_key:
+                    value = var_value
+                    found = True
+                    break
 
         if not found:
-            pass # TODO
+            for var_key, var_value in self.value_pairs.items():
+                if subject == var_key or subject == '_'+var_key:
+                    value = var_value
+                    found = True
+                    break
 
         # If we have a nested reference follow it recursively until we find the value we need.
         # if value and is_nested:
