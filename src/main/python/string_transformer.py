@@ -1,6 +1,6 @@
 from typing import Union, List, Dict
 
-from modl_creator import TrueVal, ModlObject, ModlValue, FalseVal, String, Number
+from modl_creator import TrueVal, ModlObject, ModlValue, FalseVal, String, Number, Pair
 from string_utils import EscapeStrings
 from variable_methods import is_variable_method, transform
 
@@ -242,8 +242,8 @@ class StringTransformer:
                     break
 
         # If we have a nested reference follow it recursively until we find the value we need.
-        # if value and is_nested:
-        #     return self.get_value_for_reference_recursive(value, remainder)
+        if value and is_nested:
+            return self.get_value_for_reference_recursive(value, remainder)
 
         return value
 
@@ -338,4 +338,60 @@ class StringTransformer:
         except ValueError:
             return None
 
+    def get_value_for_reference_recursive(self, ctx: ModlValue, key: str) -> ModlValue:
+        """
+        For keys such as a>b>c>d>e, each call to this method takes the first part and uses it to find the referenced
+        object in the current ctx object, then calls itself with this new object as the context and the remaining part
+        of the nested object reference (b>c>d>e in this case) until all the parts of the reference are used up.
+
+        :param ctx: The should contain a value for the given key
+        :param key: The key of the object that we need - possibly a nested reference.
+        :return: The value that was referenced, or a RuntimeException if the reference is invalid.
+        """
+
+        # Check for nested keys
+        try:
+            gt_index = key.index('>')
+        except ValueError:
+            gt_index = None
+
+        is_nested = gt_index is not None
+
+        remainder: str = None
+        curr_key: str = None
+
+        if is_nested:
+            remainder = key[gt_index+1:]
+            curr_key = key[:gt_index]
+        else:
+            remainder = None
+            curr_key = key
+
+        # Get the nested value via its name or number
+        new_ctx: ModlValue = None
+        if curr_key.isdigit():
+            index = int(curr_key)
+            if isinstance(ctx, Pair):
+                if index != 0:
+                    raise ValueError("Index should always be zero when reference the value of a Pair")
+                new_ctx = ctx.get_value()
+            else:
+                new_ctx = ctx.get_by_index(index)
+        else:
+            if isinstance(ctx, Pair):
+                if curr_key != ctx.get_key():
+                    raise ValueError("Object reference should match the key name for a Pair")
+                new_ctx = ctx.get_value()
+            else:
+                new_ctx = ctx.get_by_name(curr_key)
+
+        # Recurse if we're still nested
+        if is_nested:
+            return self.get_value_for_reference_recursive(new_ctx, remainder)
+        elif not new_ctx:
+            # The currentKey number or name must be invalid.
+            raise ValueError(f"Invalid Object Reference: {curr_key}")
+
+        # Success, return the value we found.
+        return new_ctx
 

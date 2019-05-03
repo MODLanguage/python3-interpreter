@@ -132,7 +132,9 @@ class ModlInterpreter:
                     structures.append(struct)
 
             if raw_struct.is_array():
-                pass
+                struct = self._interpret_array(modl_obj, raw_struct)
+                if struct:
+                    structures.append(struct)
 
             if raw_struct.is_pair():
                 pair: Pair = self._interpret_pair(modl_obj, raw_struct)
@@ -149,19 +151,46 @@ class ModlInterpreter:
 
         map_obj = Map()
 
-        if orig_map.get_modl_values():
+        if orig_map.get_modl_values() is not None:
             for orig_pair in orig_map.get_modl_values():
-                pairs = self._interpret_map(modl_obj, orig_pair, parent_pair)
+                pairs = self._interpret_map_pair(modl_obj, orig_pair, parent_pair)
                 if pairs is not None:
-                    for pair in pairs.get_modl_values():
+                    for pair in pairs:
                         key = pair.get_key().get_value()
                         if not (key.startswith('_') or key.startswith('*') or key.startswith('?')):
                             map_obj.add(pair)
 
         return map_obj
 
-    def _interpret_array(self, modl_obj, orig_map: Map, parent_pair=None):
-        raise NotImplemented('_interpret_array not implemented')
+    def _interpret_map_pair(self, modl_obj, orig_pair, parent_pair):
+        if orig_pair is None:
+            return None
+
+        pairs = []
+        if isinstance(orig_pair, parser.MapConditional):  # TODO: correct type?
+            # evaluate the conditional
+            pairs = self._interpret_value_conditional(modl_obj, orig_pair, parent_pair)
+        pair = self._interpret_pair(modl_obj, orig_pair, parent_pair)
+        if pair:
+            if not str(pair.get_key().get_value()).startswith('_'):
+                pairs.append(pair)
+
+        return pairs
+
+    def _interpret_array(self, modl_obj, raw_array: Array, parent_pair: Pair=None):
+        if raw_array is None:
+            return None
+
+        array = Array()
+
+        if raw_array.get_modl_values() is not None:
+            for orig_array_item in raw_array.get_modl_values():
+                value: ModlValue = self._interpret_something(modl_obj, orig_array_item, parent_pair)
+                if value is not None:
+                    array.add(value)
+                    if parent_pair is not None:
+                        parent_pair.add_modl_value(value)
+        return array
 
     def _interpret_something(self, modl_obj, raw_value: ModlValue, parent_pair=None):
         """TODO: what is this doing? Better name required!"""
