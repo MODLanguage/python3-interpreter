@@ -44,9 +44,8 @@ class ParseToJSONTestCase(unittest.TestCase):
             test_data = json.load(f)
 
         logging.debug(f"Running {len(test_data)} test cases in base_tests.json")
-        i = 0
-        for t in test_data:
-            i += 1
+        for i in range(len(test_data)):
+            t = test_data[i]
             # Restrict which tests are run - comment out to run all
             # if i not in range(102,103):
             #     continue
