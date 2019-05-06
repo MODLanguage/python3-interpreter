@@ -23,9 +23,14 @@ class StringTransformerTestCase(unittest.TestCase):
         self.assertEqual(String('\n&'), transformer.transform('\\n~&'))
 
     def test_trim(self):
-        transformer = StringTransformer({}, {String('_v'): String('testing')}, {})
+        transformer = StringTransformer({}, {String('v'): String('testing')}, {})
         result = transformer.transform("`%v.t(ing)`")
-        self.assertEqual(String('test'), str(result))
+        self.assertEqual(String('test'), result)
+
+    def test_uppercase(self):
+        transformer = StringTransformer({}, {String('v'): String('testing')}, {})
+        result = transformer.transform("%v.u")
+        self.assertEqual(String('TESTING'), result)
 
 
 if __name__ == '__main__':

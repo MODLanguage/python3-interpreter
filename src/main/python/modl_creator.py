@@ -87,6 +87,10 @@ class String(ModlValue):
     def is_terminal(self):
         return True
 
+    def __repr__(self):
+        """ Representation of object, useful for unit test failures etc. """
+        return f'String("{self.string}")'
+
     def __str__(self):
         return self.string
 

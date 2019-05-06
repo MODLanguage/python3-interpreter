@@ -236,7 +236,7 @@ class StringTransformer:
 
         if not found:
             for var_key, var_value in self.value_pairs.items():
-                if subject == var_key or subject == '_'+var_key:
+                if subject == var_key or subject == '_'+str(var_key):
                     value = var_value
                     found = True
                     break
