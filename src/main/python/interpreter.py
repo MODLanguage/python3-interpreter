@@ -249,7 +249,7 @@ class ModlInterpreter:
         if not raw_pair.get_key():
             return None
 
-        orig_key: str = raw_pair.get_key().get_value()
+        orig_key: str = str(raw_pair.get_key())
         new_key: str = orig_key
 
         if self._have_modl_class(orig_key):
@@ -435,12 +435,50 @@ class ModlInterpreter:
         self.numbered_variables[var_num] = modl_value
         return var_num
 
-    def _load_class(self, raw_struct):
-        if isinstance(raw_struct, Pair):
-            key = raw_struct.get_key()
+    def _load_class(self, structure):
+        if isinstance(structure, Pair):
+            key = structure.get_key()
             if not (key == '*class' or key == '*c'):
                 raise ValueError('Expected *class in class loader')
-            # TODO: load the class
+            self._load_class_structure(structure)
+
+    def _load_class_structure(self, structure):
+        # Load in the new klass
+        values = {}
+        id = self._get_pair_value_for(structure, '*id')
+        if id is None:
+            id = self._get_pair_value_for(structure, '*i')
+        if id is None:
+            raise ValueError("Can't find *id in *class")
+        self.classes[id] = values
+        superclass = self._get_pair_value_for(structure, '*superclass')
+        if superclass is None:
+            superclass = self._get_pair_value_for(structure, '*s')
+        values['*superclass'] = superclass
+        name = self._get_pair_value_for(structure, '*name')
+        if name is None:
+            name = self._get_pair_value_for(structure, '*n')
+        if name is None:
+            name = id
+        values['*name'] = name  # TODO???
+        # Remember to see if there is a superclass - if so, then copy all its values in first
+        if superclass is not None:
+            if superclass.upper() == superclass:
+                raise ValueError("Can't derive from " + superclass + ", as it in upper case and therefore fixed")
+        superklass: dict = self.classes.get(superclass, None)
+        if superklass is not None:
+            for key, value in superklass.items():
+                values[key] = value
+
+        # Go through the structure and find all the new values and add them (replacing any already there from superklass)
+        #...
+
+    def _get_pair_value_for(self, structure: Structure, pair_value: str) -> Union[str, None]:
+        for map_item in structure.get_value().get_modl_values():
+            if map_item.get_key().get_value() == pair_value:
+                # TODO This does not need to be a String!
+                return map_item.get_value().get_value()
+        return None
 
     def _load_variable_method(self, raw_struct):
         pass
@@ -482,6 +520,7 @@ class ModlInterpreter:
 
         if raw_value.is_string():
             return self._interpret_string(raw_value)
+
 
 
 
