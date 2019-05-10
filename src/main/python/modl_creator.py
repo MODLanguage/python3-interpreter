@@ -232,6 +232,10 @@ class Map(Structure):
         return [mi.key for mi in self.map_items]
 
 
+class MapConditional(Pair):
+    pass
+
+
 class Array(Structure):
     def __init__(self):
         super().__init__()
@@ -257,8 +261,22 @@ class Array(Structure):
         return self.array_items
 
 
+class ArrayConditional(Array):
+    def __init__(self):
+        super().__init__()
+        self.conditionals = {}
+
+    def add_conditional(self, condition_test, condition_return):
+        self.conditionals[condition_test] = condition_return
+
+
+class ArrayConditionalReturn(Array):
+    pass
+
+
 class Subcondition(Structure):
     pass
+
 
 class Condition(Subcondition):
     def __init__(self, key: str, operator: str, values: List[ModlValue]):
@@ -275,6 +293,7 @@ class Condition(Subcondition):
     def get_values(self):
         return self.values
 
+
 class ConditionTest(Structure):
     def __init__(self):
         self.subconditions = {}
@@ -284,6 +303,7 @@ class ConditionTest(Structure):
 
     def subconditions(self):
         return self.subconditions
+
 
 class ConditionGroup(Subcondition):
     def __init__(self):
@@ -298,6 +318,7 @@ class ConditionGroup(Subcondition):
 
 class Conditional(ModlValue):
     pass
+
 
 class ValueConditionalReturn:
     def __init__(self):

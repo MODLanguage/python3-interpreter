@@ -4,7 +4,7 @@ from typing import List, Union
 import modl
 import parser
 from modl_creator import RawModlObject, ModlObject, Pair, Structure, Map, ModlValue, Array, String, Number, \
-    process_modl_parsed, ValueConditional, TrueVal, FalseVal, NullVal
+    process_modl_parsed, ValueConditional, TrueVal, FalseVal, NullVal, MapConditional
 from parser import TopLevelConditional
 from string_transformer import StringTransformer
 
@@ -138,7 +138,7 @@ class ModlInterpreter:
 
             if raw_struct.is_pair():
                 pair: Pair = self._interpret_pair(modl_obj, raw_struct)
-                if pair:
+                if pair and pair.get_key():
                     key = pair.get_key().get_value()
                     if not (key.startswith('_') or key.startswith('*') or key.startswith('?')):
                         structures.append(pair)
@@ -301,24 +301,23 @@ class ModlInterpreter:
     def _have_modl_class(self, orig_key):
         return self._get_modl_class(orig_key) is not None
 
-    def _get_modl_class(self, key: str):
-        for k,v in self.classes.items():
-            for vk, vv in v.items():
-                if vk in ['*name', '*n', '*id', '*i']:
-                    if isinstance(vv, str):
-                        return vv
-                    elif isinstance(vv, String) and vv.get_value == key:
-                        return vv
+    def _get_modl_class(self, key: str) -> dict:
+        for class_key, class_details in self.classes.items():
+            for ck, cv in class_details.items():
+                if ck in ['*name', '*n', '*id', '*i']:
+                    if isinstance(cv, str) and cv == key:
+                        return class_details
+                    elif isinstance(cv, String) and cv.get_value() == key:
+                        return class_details
         return self.classes.get(key, None)
 
     def _transform_key(self, orig_key):
         modl_class = self._get_modl_class(orig_key)
         if modl_class:
-            if isinstance(modl_class.get_by_name('*name'), String):
-                return modl_class.get_by_name('*name').get_value()
-            if isinstance(modl_class.get_by_name('*n'), String):
-                return modl_class.get_by_name('*').get_value()
-
+            if '*name' in modl_class:
+                return str(modl_class['*name'])
+            if '*n' in modl_class:
+                return str(modl_class['*n'])
         return orig_key
 
     def _transform_value(self, raw_pair):
@@ -366,8 +365,56 @@ class ModlInterpreter:
             string = str(v.get_value())
         return string
 
-    def _generate_modl_class_object(self, modl_obj, raw_pair, pair, orig_key, new_key, parent_pair):
-        return True  # TODO
+    def _generate_modl_class_object(self,
+                                    modl_obj: ModlObject,
+                                    raw_pair,
+                                    pair: Pair,
+                                    orig_key: str,
+                                    new_key: str,
+                                    parent_pair
+                                    ) -> bool:
+        pair.key = String(new_key)
+        num_params = 0
+        # if raw_pair.get_value():
+        #     if isinstance(raw_pair.get_value(), Map):
+        #         pass
+        #     elif isinstance(raw_pair.get_value(), Array):
+        #         num_params = len(raw_pair.get_value().get_modl_values())
+        #     else:
+        #         num_params = 1
+        num_params = self._get_num_params(raw_pair, num_params)
+        params_key_str: str = '*params' + str(num_params)
+        obj = self._get_modl_class(str(raw_pair.get_key())).get(params_key_str, None)
+        has_params = obj is not None
+
+        # If it's not already a map pair, and one of the parent classes in the class hierarchy includes pairs, then it is transformed to a map pair.
+        if self._any_class_contains_pairs(orig_key) or self._map_pair_already(raw_pair) or has_params:
+            pair.key = String(new_key)  # TODO: Do we need to do this again here?!
+            pairs = None
+            was_array = False
+
+            if isinstance(raw_pair.get_value(), Array):
+                # TODO They are not necessarily pairs!!!
+                # TODO But they will _become_ pairs when paired up with the ModlClass
+                try:
+                    pairs = self._get_pairs_from_array(modl_obj, raw_pair.get_value(), parent_pair)
+                    if len(pairs) > 0:
+                        was_array = True
+                    else:
+                        pairs = None
+                except:
+                    was_array = False
+
+            if self._map_pair_already(raw_pair):
+                pairs = []
+                self._add_map_items_to_pair(modl_obj, raw_pair.get_value().get_modl_values(), pairs, parent_pair)
+
+            if pairs is not None:
+                # Make all the new map values in the new map pair
+                self._make_new_map_pair(modl_obj, pair, pairs, was_array, parent_pair)
+
+            # TODO.... carry on.... lots more to implement in this method - see Java
+            #...
 
     def add_value_from_pair(self, modl_obj, raw_pair, parent_pair, pair, value):
         # Is this a variable prefixed by "%"?
@@ -520,6 +567,68 @@ class ModlInterpreter:
 
         if raw_value.is_string():
             return self._interpret_string(raw_value)
+
+    def _get_num_params(self, raw_pair, num_params):
+        if isinstance(raw_pair.get_value(), Map):
+            map_pair: Map = raw_pair
+            num_params = len(map_pair.get_modl_values())
+        elif isinstance(raw_pair.get_value(), Array):
+            array_pair: Array = raw_pair
+            num_params = len(array_pair.get_modl_values())
+        elif raw_pair.get_value() is not None:
+            num_params = 1
+
+        return num_params
+
+    def _any_class_contains_pairs(self, orig_key: str) -> bool:
+        # If this class, or any of its parent classes, define any pairs, then return true
+        # A pair is defined in a class if it has a pair whose key does not start in "_"
+        cls = self._get_modl_class(orig_key)
+        for key in cls.keys():
+            if not (key.startswith('_') or key.startswith('*') or key == '?'):
+                return True
+        return False
+
+
+    def _map_pair_already(self, orig_pair):
+        return isinstance(orig_pair.get_value(), Map)
+
+    def _get_pairs_from_array(self, modl_obj: ModlObject, array: Array, parent_pair):
+        return self._get_pairs_from_list(modl_obj, array.get_modl_values(), parent_pair)
+
+    def _get_pairs_from_list(self, modl_obj: ModlObject, array_items: List[ModlValue], parent_pair) -> List[Pair]:
+        pairs = []
+        if array_items is not None:
+            for array_item in array_items:
+                if isinstance(array_item, parser.ArrayConditional):
+                    new_array_items = self._interpret_array_conditional(modl_obj, array_item, parent_pair)
+                    for v in new_array_items:
+                        if isinstance(v, Pair):
+                            pairs.append(v)
+                elif isinstance(array_item, Pair):
+                    pairs.append(self._interpret_pair(modl_obj, array_item, parent_pair))
+        return pairs
+    
+    def _interpret_array_conditional(self, modl_obj, array_item, parent_pair):
+        raise NotImplementedError('_interpret_array_conditional not implemented yet')
+
+    def _add_map_items_to_pair(self, modl_obj: ModlObject, map_items: List[Pair], pairs: List[Pair], parent_pair):
+        if map_items is None:
+            return
+
+        for map_item in map_items:
+            if isinstance(map_item, MapConditional):
+                # handle conditionals
+                new_pairs = self._interpret_map_conditional(modl_obj, map_item, parent_pair)
+                for pair in new_pairs:
+                    pairs.append(pair)
+            elif map_item is not None:
+                pairs.append(self._interpret_pair(modl_obj, map_item, parent_pair))
+
+    def _interpret_map_conditional(self, modl_obj, map_item, parent_pair):
+        raise NotImplementedError('_interpret_map_conditional not yet implemented')
+
+
 
 
 
