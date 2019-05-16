@@ -1,3 +1,5 @@
 .idea
 
 src/main/python/generated
+src/main/python/__pycache__
+
