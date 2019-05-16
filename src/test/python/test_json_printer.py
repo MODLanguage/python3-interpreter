@@ -47,7 +47,7 @@ class ParseToJSONTestCase(unittest.TestCase):
         for i in range(len(test_data)):
             t = test_data[i]
             # Restrict which tests are run - comment out to run all
-            # if i not in range(0,1):
+            # if i not in range(39,40):
             #     continue
             input: str = t['input']
             with self.subTest(msg=f"{i}", input=input, expected=t['expected_output']):
@@ -56,6 +56,7 @@ class ParseToJSONTestCase(unittest.TestCase):
                 actual = json.loads(actual_str)
                 # Compare JSON structures rather than strings, so that we're not failing on, e.g. whitespace
                 self.assertEqual(expected, actual)
+
 
 if __name__ == '__main__':
     unittest.main()

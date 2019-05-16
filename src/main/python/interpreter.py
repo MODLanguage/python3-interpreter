@@ -1,10 +1,10 @@
 import logging
-from typing import List, Union
+from typing import List, Union, Dict, Any
 
 import modl
 import parser
 from modl_creator import RawModlObject, ModlObject, Pair, Structure, Map, ModlValue, Array, String, Number, \
-    process_modl_parsed, ValueConditional, TrueVal, FalseVal, NullVal, MapConditional
+    process_modl_parsed, ValueConditional, TrueVal, FalseVal, NullVal, MapConditional, ArrayConditional
 from parser import TopLevelConditional
 from string_transformer import StringTransformer
 
@@ -34,7 +34,7 @@ class ModlInterpreter:
         self.pair_names = set()
         self.value_pairs = {}
 
-        self.classes = {}
+        self.classes: Dict[str, Any] = {}
         self.variables = {}
         self.numbered_variables = {}
 
@@ -185,15 +185,14 @@ class ModlInterpreter:
 
         if raw_array.get_modl_values() is not None:
             for orig_array_item in raw_array.get_modl_values():
-                value: ModlValue = self._interpret_something(modl_obj, orig_array_item, parent_pair)
+                value: ModlValue = self._interpret_modl_value(modl_obj, orig_array_item, parent_pair)
                 if value is not None:
                     array.add(value)
                     if parent_pair is not None:
                         parent_pair.add_modl_value(value)
         return array
 
-    def _interpret_something(self, modl_obj, raw_value: ModlValue, parent_pair=None):
-        """TODO: what is this doing? Better name required!"""
+    def _interpret_modl_value(self, modl_obj, raw_value: ModlValue, parent_pair=None):
         if raw_value is None:
             return None
 
@@ -204,7 +203,7 @@ class ModlInterpreter:
 
         array = Array()
         for vi in raw_value.get_modl_values():
-            array.add(self._interpret_something(modl_obj, vi, parent_pair))
+            array.add(self._interpret_modl_value(modl_obj, vi, parent_pair))
             
         return array
 
@@ -254,7 +253,7 @@ class ModlInterpreter:
 
         if self._have_modl_class(orig_key):
             new_key = self._transform_key(orig_key)
-            raw_pair = self._transform_value(raw_pair)
+            raw_pair = self._transform_value(modl_obj, raw_pair)
 
         # IF WE ALREADY HAVE A PAIR WITH THIS NAME, AND THE NAME IS UPPER-CASE, THEN RAISE AN ERROR
         if new_key:
@@ -298,8 +297,8 @@ class ModlInterpreter:
         else:
             self.add_config_numbered_var(modl_value)
 
-    def _have_modl_class(self, orig_key):
-        return self._get_modl_class(orig_key) is not None
+    def _have_modl_class(self, key: str):
+        return self._get_modl_class(key) is not None
 
     def _get_modl_class(self, key: str) -> dict:
         for class_key, class_details in self.classes.items():
@@ -320,9 +319,24 @@ class ModlInterpreter:
                 return str(modl_class['*n'])
         return orig_key
 
-    def _transform_value(self, raw_pair):
-        # TODO
-        return raw_pair
+    def _transform_value(self, modl_obj, orig_pair: Pair):
+        if self._have_modl_class(orig_pair.get_key()):
+            modl_class = self._get_modl_class(str(orig_pair.get_key()))
+
+            if modl_class.get('*name', None) == '_v' or modl_class.get('*name', None) == 'var' or modl_class.get('*n', None) == '_v' or modl_class.get('*n', None) == 'var':
+                self._load_config_numbered_vars(orig_pair.get_value())
+            else:
+                if modl_class.get('*superclass', None) == 'str':
+                    pair = Pair(key=orig_pair.get_key())
+                    if orig_pair.get_value() is None:
+                        return orig_pair
+                    if isinstance(orig_pair.get_value(), String):
+                        return orig_pair
+                    value = self._make_value_string(modl_obj, orig_pair.get_value())
+                    v = String(str(value))
+                    pair.add_modl_value(v)
+                    return pair
+        return orig_pair
 
     def _transform_pair_key(self, raw_modl_obj, orig_pair, new_key, parent_pair):
         transformed_key = new_key
@@ -352,7 +366,6 @@ class ModlInterpreter:
                 parent_pair.append(string)
             else:
                 raise ValueError('Expecting dict or list as parent_pair!')
-
 
     def _get_string_from_value(self, pair: Pair):
         string = None
@@ -413,8 +426,85 @@ class ModlInterpreter:
                 # Make all the new map values in the new map pair
                 self._make_new_map_pair(modl_obj, pair, pairs, was_array, parent_pair)
 
-            # TODO.... carry on.... lots more to implement in this method - see Java
-            #...
+            if (not raw_pair.get_value().is_pair()) and (not raw_pair.get_value().is_map()):
+                if not has_params:
+                    # Don't need a pair here - continue
+                    value = self._interpret_modl_value(modl_obj, raw_pair.get_value(), parent_pair)
+                    pair.add_modl_value(value)
+                else:
+                    param_num = 0
+                    params: List[ModlValue] = obj
+                    curr_class = None
+
+                    values: List[ModlValue] = []
+                    pair_val = raw_pair.get_value()
+                    if isinstance(pair_val, Array):
+                        for vl in pair_val.get_modl_values():
+                            if isinstance(vl, ArrayConditional):
+                                vs = self._interpret_array_conditional(modl_obj, vl, parent_pair)
+                                for v in vs:
+                                    values.append(v)
+                            else:
+                                values.append(vl)
+                    else:
+                        values.append(pair_val)
+                    for value_item in values:
+                        # How about checking if the valueItem has more than one valuitem?
+                        # If it does, then make it a pair, and set the key to the currentClass
+                        if isinstance(params[param_num], String):
+                            curr_class = str(params[param_num])
+
+                        if value_item.is_array():
+                            raw_modl_obj = RawModlObject()
+                            # Get the class which we're interested in, and go through the different entries
+                            modl_class_obj = self._get_modl_class(curr_class)
+                            inner_param_num = 0
+                            inner_pair = Pair()
+                            value_pair = Pair()
+                            full_class_name = curr_class  # TODO GET THIS FROM THE MODLOBJ!!
+                            try:
+                                name_str = self._get_modl_class(curr_class).get_by_name('*name').get_value()
+                                if name_str is None:
+                                    name_str = self._get_modl_class(curr_class).get_by_name('*n').get_value()
+                                full_class_name = name_str
+                            except:
+                                pass
+
+                            value_pair.key = String(full_class_name)
+                            for vi in value_item.get_modl_values():
+                                value_item_size = 1
+                                if value_item.is_array():
+                                    value_item_size = len(value_item.get_modl_values())
+
+                                modl_class_map = self._get_modl_class(curr_class)
+                                superclass = modl_class_map.get_by_name('*superclass')
+                                if superclass == 'arr':
+                                    v: ModlValue = self._interpret_modl_value(modl_obj, vi, parent_pair)
+                                    value_pair.add_modl_value(v)
+                                elif superclass == 'map':
+                                    # TODO: I know this is currently nonsense
+                                    inner_class_name = modl_class_obj.get_modl_values()[value_item_size].get_value()[inner_param_num]
+                                    inner_param_num += 1
+                                    new_raw_pair = Pair(key=inner_class_name, value=vi)
+
+                                    v = self._interpret_pair(modl_obj, new_raw_pair, parent_pair, add_to_value_pairs=True)
+
+                                    # And add it to the pair
+                                    value_pair.add_modl_value(v)
+                                    inner_pair.add_modl_value(value_pair)
+                                else:
+                                    raise ValueError(f"Superclass {superclass} of {full_class_name} is not known!")
+                            pair.add_modl_value(value_pair)
+                        else:
+                            self.add_new_class_param_value(modl_obj, pair, parent_pair, curr_class, value_item)
+
+                        param_num += 1
+
+                self.add_all_parent_pairs(modl_obj, pair, orig_key)
+                return True
+            self.add_all_parent_pairs(modl_obj, pair, orig_key)
+            return True
+        return False
 
     def add_value_from_pair(self, modl_obj, raw_pair, parent_pair, pair, value):
         # Is this a variable prefixed by "%"?
@@ -440,7 +530,7 @@ class ModlInterpreter:
             new_value = self._run_deep_ref(value, new_value)
             pair.add_modl_value(new_value)
         else:
-            pair.add_modl_value(self._interpret_something(modl_obj, value, parent_pair))
+            pair.add_modl_value(self._interpret_modl_value(modl_obj, value, parent_pair))
 
     def _load_config_file(self, location):
         # We no longer keep configs around - they can be built up dynamically for each new record that comes in
@@ -627,6 +717,96 @@ class ModlInterpreter:
 
     def _interpret_map_conditional(self, modl_obj, map_item, parent_pair):
         raise NotImplementedError('_interpret_map_conditional not yet implemented')
+
+    def _make_value_string(self, modl_obj: ModlObject, value: ModlValue):
+        if value is None:
+            return None
+
+        new_str: str = None
+        if value.is_string():
+            new_str = str(value)
+        if value.is_number():
+            new_str = str(value.get_value())
+        if value.is_true():
+            new_str = 'true'
+        if value.is_false():
+            new_str = 'false'
+        if value.is_null():
+            new_str = 'null'
+
+        value = String(new_str)
+        return value
+
+    def _make_new_map_pair(self, modl_obj, pair, raw_pairs, was_array, parent_pair):
+        for orig_map_pair in raw_pairs:
+            new_map_pair = orig_map_pair
+            if new_map_pair is not None:
+                if was_array:
+                    value: ModlValue = None
+                    if not str(new_map_pair.get_key()).startswith('_'):
+                        value = new_map_pair
+                        pair.add_modl_value(value)
+                else:
+                    # Was not array
+                    if not str(new_map_pair.get_key()).startswith('_'):
+                        known_item = False
+                        map: Map = None
+                        if pair.get_value() is not None:
+                            map = pair.get_value()
+                        if map is None:
+                            map = Map()
+                            pair.add_modl_value(map)
+                        if new_map_pair.get_key() in map.get_keys():
+                            known_item = True
+                        if not known_item:
+                            map.add(new_map_pair)
+
+    def add_new_class_param_value(self, modl_obj: ModlObject, pair: Pair, parent_pair: Pair, curr_class: str, value_item: ModlValue):
+        new_value = self._interpret_modl_value(modl_obj, value_item, parent_pair)
+        value_pair = Pair()
+        full_class_name = curr_class
+        try:
+            full_class_name = str(self._get_modl_class(curr_class).get_by_name('*name'))
+        except:
+            pass
+
+        value_pair.key = String(full_class_name)
+        value_pair.add_modl_value(new_value)
+        pair.add_modl_value(value_pair)
+
+    def add_all_parent_pairs(self, modl_obj: ModlObject, pair: Pair, orig_key: str):
+        cls = self._get_modl_class(orig_key)
+        for key in cls.keys():
+            if key and key[0] not in ['_', '*', '?']:
+                if self.pair_has_key(pair, key):
+                    # Only add the new key if it does not already exist in the pair!
+                    continue
+                new_pair = Pair(key=String(key))
+                new_pair.add_modl_value(self._interpret_modl_value(modl_obj, cls[key], parent_pair=None))
+                if pair.get_value() and pair.get_value().is_map():
+                    pair.get_value().add(new_pair)
+                else:
+                    pair.add_modl_value(new_pair)
+
+    def pair_has_key(self, pair: Pair, key: str) -> bool:
+        if not pair.get_value():
+            return False
+
+        if pair.get_value().is_pair():
+            if pair.get_value().get_key() == key:
+                return True
+        else:
+            if pair.get_value().is_map():
+                if pair.get_value().get_by_name(key):
+                    return True
+
+        return False
+
+
+
+
+
+
 
 
 

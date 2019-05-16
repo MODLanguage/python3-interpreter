@@ -2,7 +2,7 @@ import unittest
 
 from interpreter import UnrecognisedInstruction
 import modl
-from modl_creator import RawModlObject, Pair
+from modl_creator import RawModlObject, Pair, Number, Map
 
 
 class InterpreterTestCase(unittest.TestCase):
@@ -54,6 +54,26 @@ class InterpreterTestCase(unittest.TestCase):
         except UnrecognisedInstruction:
             # good!
             pass
+
+    def test_simple_class(self):
+        interpreted: RawModlObject = modl.interpret('*class(*id=a;*name=age);a=10')
+        # Test the resulting tree
+        pair: Pair = interpreted.get_by_index(0)
+        result_key = pair.key
+        result_val = pair.value
+        self.assertTrue(isinstance(result_val, Number))
+        self.assertEqual(('age', 10), (str(result_key), result_val.get_value()))
+        self.assertEqual(1, len(interpreted.structures))
+
+    def test_class_with_superclass(self):
+        interpreted: RawModlObject = modl.interpret('*class(*id=p;*name=person;*superclass=map;);p(name=John Smith;dob=01/01/2000)')
+        # Test the resulting tree
+        pair: Pair = interpreted.get_by_index(0)
+        result_key = pair.key
+        result_val = pair.value
+        self.assertTrue(isinstance(result_val, Map))
+        self.assertEqual('person', str(result_key))
+        self.assertEqual(1, len(interpreted.structures))
 
 
 if __name__ == '__main__':

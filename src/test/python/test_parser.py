@@ -80,6 +80,21 @@ class ParserTestCase(unittest.TestCase):
         actual_items = [ai.array_value_item.string for ai in pair.value_item.value.nb_array.array_items]
         self.assertEquals(['red', None, 'blue'], actual_items)
 
+    def test_classes(self):
+        modl = parse('*class(*id=a;*name=age);a=10')
+
+        # The class def, plus the usage
+        self.assertEquals(2, len(modl.structures))
+
+        # Class def
+        pair = modl.structures[0].pair
+        actual_class = { mi.pair.key: str(mi.pair.value_item) for mi in pair.map.map_items}
+        self.assertEqual(('*class', {'*id': 'a', '*name': 'age'}), (pair.key, actual_class))
+
+        # Usage
+        pair = modl.structures[1].pair
+        self.assertEqual(('a', 10), (pair.key, pair.value_item.value.number))
+
     @unittest.skip('Not yet implemented properly in both test and prod code')
     def test_conditional(self):
         modl = parse('country=gb;support_contact={country=gb?John Smith/country=us?John Doe/?None}')
