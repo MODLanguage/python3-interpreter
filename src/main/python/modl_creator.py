@@ -634,10 +634,11 @@ def process_modl_item(raw: RawModlObject, parsed_item):
                 condition_test.add_subcondition(operator, should_negate, condition)
         return condition_test
 
-    #... various other condition related bits from Java, e.g. ModlObjectCreator:251...
+    # TODO... various other condition related bits from Java, e.g. ModlObjectCreator:251...
     # RawModlObject.Condition processModlParsed(RawModlObject rawModlObject, ModlParsed.Condition conditionParsed)
 
     if type(parsed_item) == parser.Pair:
+        # TODO: are we losing the ValueConditional here... check what happens in the Java.
         pair = Pair(key=String(parsed_item.get_key()))
 
         if parsed_item.get_key() == '*I' or parsed_item.get_key() == '*IMPORT':
