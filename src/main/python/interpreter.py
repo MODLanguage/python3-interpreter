@@ -125,7 +125,7 @@ class ModlInterpreter:
 
         structures = []
 
-        if not isinstance(raw_struct, TopLevelConditional):  # TODO: not sure we're doing correct comparison here
+        if not isinstance(raw_struct, TopLevelConditional):  # TODO: this should be a modl_creator.TopLevelConditional
             if raw_struct.is_map():
                 struct = self._interpret_map(modl_obj, raw_struct)
                 if struct:
@@ -352,7 +352,7 @@ class ModlInterpreter:
                     orig_pair.key = String(transformed_key)
                     new_list = []
                     self._interpret_array(raw_modl_obj, orig_pair.get_value(), new_list)
-            if orig_pair.get_value().is_string():
+            if isinstance(orig_pair.get_value(), String):
                 self.value_pairs[transformed_key] = self._transform_string(str(orig_pair.get_value()))
             else:
                 self.value_pairs[transformed_key] = orig_pair.get_value()
